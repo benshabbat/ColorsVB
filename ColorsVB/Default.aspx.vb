@@ -6,23 +6,7 @@ Partial Class _Default
     Inherits System.Web.UI.Page
 
     ' מחרוזת החיבור לבסיס הנתונים
-    Private ReadOnly connectionString As String = GetConnectionString()
-
-    ' פונקציה לקבלת מחרוזת החיבור
-    Private Shared Function GetConnectionString() As String
-        Try
-            Dim connStr As ConnectionStringSettings = ConfigurationManager.ConnectionStrings("Benshabbat\SQLEXPRESS")
-            If connStr IsNot Nothing Then
-                Return connStr.ConnectionString
-            Else
-                ' מחרוזת חיבור ברירת מחדל אם לא נמצאה בקונפיג
-                Return "Data Source=.\SQLEXPRESS;Initial Catalog=ColorsDB;Integrated Security=True"
-            End If
-        Catch ex As Exception
-            ' מחרוזת חיבור ברירת מחדל במקרה של שגיאה
-            Return "Data Source=.\SQLEXPRESS;Initial Catalog=ColorsDB;Integrated Security=True"
-        End Try
-    End Function
+    Private ReadOnly connectionString As String = "Data Source=Benshabbat\SQLEXPRESS;Initial Catalog=ColorsDB;Integrated Security=True"
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         If Not Page.IsPostBack Then
@@ -30,7 +14,7 @@ Partial Class _Default
         End If
     End Sub
 
-    ' טעינת הצבעים לגריד
+    ' טעינת הצבעים לרפיטר
     Private Sub LoadColors()
         Try
             Using connection As New SqlConnection(connectionString)
@@ -40,8 +24,8 @@ Partial Class _Default
                 Using adapter As New SqlDataAdapter(query, connection)
                     Dim dataTable As New DataTable()
                     adapter.Fill(dataTable)
-                    gvColors.DataSource = dataTable
-                    gvColors.DataBind()
+                    rptColors.DataSource = dataTable
+                    rptColors.DataBind()
                 End Using
             End Using
         Catch ex As Exception
@@ -50,7 +34,7 @@ Partial Class _Default
     End Sub
 
     ' שמירת צבע (הוספה או עדכון)
-    Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+    Protected Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
         Try
             Dim colorName As String = txtColorName.Text.Trim()
             Dim price As Decimal
@@ -79,7 +63,6 @@ Partial Class _Default
 
                 If colorId = 0 Then
                     ' הוספת צבע חדש
-                    ' בדיקה אם הצבע כבר קיים
                     Dim checkQuery As String = "SELECT COUNT(*) FROM Colors WHERE ColorName = @ColorName"
                     Using checkCommand As New SqlCommand(checkQuery, connection)
                         checkCommand.Parameters.AddWithValue("@ColorName", colorName)
@@ -109,7 +92,6 @@ Partial Class _Default
                     End Using
                 Else
                     ' עדכון צבע קיים
-                    ' בדיקה אם השם החדש כבר קיים (למעט הצבע הנוכחי)
                     Dim checkQuery As String = "SELECT COUNT(*) FROM Colors WHERE ColorName = @ColorName AND ColorId <> @ColorId"
                     Using checkCommand As New SqlCommand(checkQuery, connection)
                         checkCommand.Parameters.AddWithValue("@ColorName", colorName)
@@ -150,23 +132,23 @@ Partial Class _Default
     End Sub
 
     ' ביטול עריכה
-    Protected Sub btnCancel_Click(sender As Object, e As EventArgs)
+    Protected Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
         CancelEdit()
     End Sub
 
     ' ניקוי הטופס
-    Protected Sub btnClear_Click(sender As Object, e As EventArgs)
+    Protected Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
         ClearForm()
     End Sub
 
-    ' טיפול בפקודות הגריד (עריכה ומחיקה)
-    Protected Sub gvColors_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+    ' טיפול בפקודות הרפיטר (עריכה ומחיקה)
+    Protected Sub rptColors_ItemCommand(source As Object, e As RepeaterCommandEventArgs) Handles rptColors.ItemCommand
         Dim colorId As Integer = Convert.ToInt32(e.CommandArgument)
 
         Select Case e.CommandName
-            Case "EditColor"
+            Case "Edit"
                 EditColor(colorId)
-            Case "DeleteColor"
+            Case "Delete"
                 DeleteColor(colorId)
         End Select
     End Sub
@@ -184,13 +166,17 @@ Partial Class _Default
                     Using reader As SqlDataReader = command.ExecuteReader()
                         If reader.Read() Then
                             txtColorName.Text = reader("ColorName").ToString()
-                            txtPrice.Text = Convert.ToDecimal(reader("Price")).ToString("F2")
+                            txtPrice.Text = Convert.ToDecimal(reader("Price")).ToString()
                             txtDisplayOrder.Text = Convert.ToInt32(reader("DisplayOrder")).ToString()
                             chkInStock.Checked = Convert.ToBoolean(reader("InStock"))
 
                             hiddenColorId.Value = colorId.ToString()
                             lblFormTitle.Text = "עריכת צבע"
-                            btnCancel.CssClass = btnCancel.CssClass.Replace("hidden", "").Trim()
+                            btnCancel.CssClass = "btn btn-cancel"
+
+                            ShowMessage("נתוני הצבע נטענו לעריכה", "success")
+                        Else
+                            ShowMessage("לא נמצא צבע עם מזהה זה", "error")
                         End If
                     End Using
                 End Using
@@ -228,7 +214,7 @@ Partial Class _Default
     Private Sub CancelEdit()
         hiddenColorId.Value = "0"
         lblFormTitle.Text = "הוספת צבע חדש"
-        btnCancel.CssClass += " hidden"
+        btnCancel.CssClass = "btn btn-cancel hidden"
         ClearForm()
     End Sub
 
@@ -244,17 +230,12 @@ Partial Class _Default
     Private Sub ShowMessage(message As String, type As String)
         lblMessage.Text = message
         messagePanel.CssClass = "message " & type
-        messagePanel.CssClass = messagePanel.CssClass.Replace("hidden", "").Trim()
 
-        ' הסתרת ההודעה לאחר 5 שניות
-        Dim script As String = "setTimeout(function() { document.getElementById('" & messagePanel.ClientID & "').style.display = 'none'; }, 5000);"
+        Dim script As String = "setTimeout(function() { " &
+                              "var panel = document.getElementById('" & messagePanel.ClientID & "'); " &
+                              "if(panel) panel.className = 'message hidden'; " &
+                              "}, 5000);"
         ClientScript.RegisterStartupScript(Me.GetType(), "HideMessage", script, True)
     End Sub
 
-    ' עיצוב שורות הגריד
-    Protected Sub gvColors_RowDataBound(sender As Object, e As GridViewRowEventArgs)
-        If e.Row.RowType = DataControlRowType.DataRow Then
-            ' ניתן להוסיף עיצוב נוסף כאן אם נדרש
-        End If
-    End Sub
 End Class

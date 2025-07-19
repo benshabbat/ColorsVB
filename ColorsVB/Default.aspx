@@ -1,11 +1,10 @@
-<%@ Page Language="VB" AutoEventWireup="false" CodeFile="Default.aspx.vb" Inherits="_Default" %>
+<%@ Page Language="VB" AutoEventWireup="true" CodeFile="Default.aspx.vb" Inherits="_Default" %>
 
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
     <title>ניהול טבלת צבעים</title>
     <meta charset="utf-8" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,7 +29,7 @@
             width: 120px;
             font-weight: bold;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], .textbox {
             width: 200px;
             padding: 8px;
             border: 1px solid #ccc;
@@ -109,7 +108,7 @@
             font-weight: bold;
         }
         .hidden {
-            display: none;
+            display: none !important;
         }
     </style>
 </head>
@@ -128,19 +127,19 @@
                 <asp:HiddenField ID="hiddenColorId" runat="server" Value="0" />
                 
                 <div class="form-group">
-                    <label for="txtColorName">שם הצבע:</label>
-                    <asp:TextBox ID="txtColorName" runat="server" CssClass="form-control" required="true"></asp:TextBox>
+                    <label for="<%= txtColorName.ClientID %>">שם הצבע:</label>
+                    <asp:TextBox ID="txtColorName" runat="server" CssClass="textbox"></asp:TextBox>
                 </div>
                 <div class="form-group">
-                    <label for="txtPrice">מחיר:</label>
-                    <asp:TextBox ID="txtPrice" runat="server" TextMode="Number" step="0.01" CssClass="form-control" required="true"></asp:TextBox>
+                    <label for="<%= txtPrice.ClientID %>">מחיר:</label>
+                    <asp:TextBox ID="txtPrice" runat="server" CssClass="textbox"></asp:TextBox>
                 </div>
                 <div class="form-group">
-                    <label for="txtDisplayOrder">סדר הצגה:</label>
-                    <asp:TextBox ID="txtDisplayOrder" runat="server" TextMode="Number" CssClass="form-control" required="true"></asp:TextBox>
+                    <label for="<%= txtDisplayOrder.ClientID %>">סדר הצגה:</label>
+                    <asp:TextBox ID="txtDisplayOrder" runat="server" CssClass="textbox"></asp:TextBox>
                 </div>
                 <div class="form-group">
-                    <label for="chkInStock">במלאי:</label>
+                    <label for="<%= chkInStock.ClientID %>">במלאי:</label>
                     <asp:CheckBox ID="chkInStock" runat="server" Checked="true" />
                 </div>
                 <div class="form-group">
@@ -152,35 +151,48 @@
             
             <div>
                 <h2>רשימת צבעים</h2>
-                <asp:GridView ID="gvColors" runat="server" AutoGenerateColumns="false" 
-                    CssClass="table" OnRowCommand="gvColors_RowCommand" 
-                    OnRowDataBound="gvColors_RowDataBound" DataKeyNames="ColorId">
-                    <Columns>
-                        <asp:BoundField DataField="ColorId" HeaderText="מספר זיהוי" />
-                        <asp:BoundField DataField="ColorName" HeaderText="שם הצבע" />
-                         <asp:BoundField DataField="Price" HeaderText="מחיר" DataFormatString='{0:F2} ש&quot;ח' />
-                        <asp:BoundField DataField="DisplayOrder" HeaderText="סדר הצגה" />
-                        <asp:TemplateField HeaderText="במלאי">
-                            <ItemTemplate>
+                <asp:Repeater ID="rptColors" runat="server" OnItemCommand="rptColors_ItemCommand">
+                    <HeaderTemplate>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>מספר זיהוי</th>
+                                    <th>שם הצבע</th>
+                                    <th>מחיר</th>
+                                    <th>סדר הצגה</th>
+                                    <th>במלאי</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    </HeaderTemplate>
+                    <ItemTemplate>
+                        <tr>
+                            <td><%# Eval("ColorId") %></td>
+                            <td><%# Eval("ColorName") %></td>
+                            <td><%# String.Format("{0:F2} ש"ח", Eval("Price")) %></td>
+                            <td><%# Eval("DisplayOrder") %></td>
+                            <td>
                                 <span class='<%# If(Convert.ToBoolean(Eval("InStock")), "in-stock", "out-of-stock") %>'>
                                     <%# If(Convert.ToBoolean(Eval("InStock")), "כן", "לא") %>
                                 </span>
-                            </ItemTemplate>
-                        </asp:TemplateField>
-                        <asp:TemplateField HeaderText="פעולות">
-                            <ItemTemplate>
+                            </td>
+                            <td class="actions">
                                 <asp:Button ID="btnEdit" runat="server" Text="עריכה" 
-                                    CssClass="btn btn-edit" CommandName="EditColor" 
+                                    CssClass="btn btn-edit" CommandName="Edit" 
                                     CommandArgument='<%# Eval("ColorId") %>' />
                                 <asp:Button ID="btnDelete" runat="server" Text="מחיקה" 
-                                    CssClass="btn btn-delete" CommandName="DeleteColor" 
+                                    CssClass="btn btn-delete" CommandName="Delete" 
                                     CommandArgument='<%# Eval("ColorId") %>' 
                                     OnClientClick="return confirm('האם אתה בטוח שברצונך למחוק צבע זה?');" />
-                            </ItemTemplate>
-                            <ItemStyle CssClass="actions" />
-                        </asp:TemplateField>
-                    </Columns>
-                </asp:GridView>
+                            </td>
+                        </tr>
+                    </ItemTemplate>
+                    <FooterTemplate>
+                            </tbody>
+                        </table>
+                    </FooterTemplate>
+                </asp:Repeater>
             </div>
         </div>
     </form>
